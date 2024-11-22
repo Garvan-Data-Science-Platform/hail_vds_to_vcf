@@ -12,7 +12,9 @@ from cpg_utils.hail_batch import get_batch
 @click.option('--n_partitions', help='Number of partitions for the INFO table', type=int, default=2586)
 @click.option('--regions', help='Regions to subset to', type=str, default=None)
 @click.option('--regions_file', help='BED file containing regions to subset to', type=str, default=None)
-def main(vds, output, n_partitions, regions, regions_file):
+@click.option('--n_workers', help='Number of workers', type=int, default=2)
+@click.option('--max_age', help='Max age of the cluster', type=str, default='1h')
+def main(vds, output, n_partitions, regions, regions_file, n_workers, max_age):
     batch = get_batch(name='vds_to_vcf')
 
     # get relative path of cwd to the script using os
@@ -31,7 +33,8 @@ def main(vds, output, n_partitions, regions, regions_file):
 
     cluster = setup_dataproc(
         batch,
-        max_age='1h',
+        max_age=max_age,
+        num_workers=n_workers,
         packages=['click', 'gnomad'],
         cluster_name='hail_vds_to_vcf',
     )
