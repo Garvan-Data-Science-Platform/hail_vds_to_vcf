@@ -33,7 +33,9 @@ def main(
         # Each region should be in the format "chr:start[-end]"
         # Convert to an ArrayExpression of type tinterval
         regions_list = regions.split(',')
-        regions_to_keep = hl.literal([hl.parse_locus_interval(region, reference_genome='GRCh38') for region in regions_list])
+        regions_to_keep = hl.literal(
+            [hl.parse_locus_interval(region, reference_genome='GRCh38') for region in regions_list]
+        )
     elif regions_file:
         # Filter to regions in the BED file
         # Expect a BED file with 3 columns: chrom, start, end
@@ -50,8 +52,9 @@ def main(
     mt = hl.vds.to_dense_mt(v)
 
     # Check for required entry fields
-    required_fields = ['LA', 'LGT', 'DP']
-    assert all([x in list(mt.entry) for x in required_fields]), f"Missing required entry fields: {required_fields}"
+    required_fields = {'LA', 'LGT', 'DP'}
+    entry_fields = set(list(mt.entry))
+    assert required_fields.issubset(entry_fields), f"Missing required entry fields: {required_fields}"
 
     # Convert LGT to GT if necessary
     if 'GT' not in list(mt.entry):
