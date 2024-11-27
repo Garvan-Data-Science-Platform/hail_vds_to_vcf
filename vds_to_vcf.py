@@ -16,26 +16,48 @@ config = get_config()
 @click.option('--n_partitions', help='Number of partitions for the INFO table', type=int, default=2586)
 @click.option('--regions', help='Regions to subset to', type=str, default=None)
 @click.option('--regions_file', help='BED file containing regions to subset to', type=str, default=None)
-def main(vds, output, n_partitions, regions, regions_file):
+def main(
+    vds: str,
+    output: str,
+    n_partitions: int,
+    regions: str | None,
+    regions_file: str | None
+):
     # Read in the data
     v = hl.vds.read_vds(vds)
-    vd = v.variant_data
-    vd.describe()
 
     # Subset the data
-    # TODO: Implement region subsetting
+    regions_to_keep = None
     if regions:
-        pass
+        # Expect a comma-separated list of regions
+        # Each region should be in the format "chr:start[-end]"
+        # Convert to an ArrayExpression of type tinterval
+        regions_list = regions.split(',')
+        regions_to_keep = hl.literal([hl.parse_locus_interval(region, reference_genome='GRCh38') for region in regions_list])
     elif regions_file:
-        pass
+        # Filter to regions in the BED file
+        # Expect a BED file with 3 columns: chrom, start, end
+        regions_to_keep = hl.import_bed(regions_file, reference_genome='GRCh38')
+
+    # Filter to the regions
+    if regions_to_keep:
+        v = hl.vds.filter_intervals(v, regions_to_keep, keep=True)
+
+    # Split multi-allelelic sites
+    v = hl.vds.split_multi(v, filter_changed_loci=True)
 
     # Create a dense MT
     mt = hl.vds.to_dense_mt(v)
 
-    # Convert LGT to GT
-    mt = mt.annotate_entries(
-        GT=hl.vds.lgt_to_gt(mt.LGT, mt.LA)
-    )
+    # Check for required entry fields
+    required_fields = ['LA', 'LGT', 'DP']
+    assert all([x in list(mt.entry) for x in required_fields]), f"Missing required entry fields: {required_fields}"
+
+    # Convert LGT to GT if necessary
+    if 'GT' not in list(mt.entry):
+        mt = mt.annotate_entries(
+            GT=hl.vds.lgt_to_gt(mt.LGT, mt.LA)
+        )
 
     # Filter to non-ref sites and add site-level DP
     mt = mt.filter_rows(
@@ -66,6 +88,7 @@ def main(vds, output, n_partitions, regions, regions_file):
 
     # Prepare for export to VCF
     fields_to_drop = ['gvcf_info']
+    fields_to_drop = [f for f in fields_to_drop if f in list(mt.entry)]
     mt = mt.drop(*fields_to_drop)
 
     # Export to VCF
