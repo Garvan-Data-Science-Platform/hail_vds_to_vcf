@@ -53,7 +53,7 @@ def main(
 
     # Check for required entry fields
     required_fields = {'LA', 'LGT', 'DP'}
-    entry_fields = set(list(mt.entry))
+    entry_fields = set(mt.entry)
     assert required_fields.issubset(entry_fields), f"Missing required entry fields: {required_fields}"
 
     # Convert LGT to GT if necessary
