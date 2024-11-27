@@ -4,19 +4,11 @@ import hail as hl
 from gnomad.utils.sparse_mt import default_compute_info
 from gnomad.utils.vcf import adjust_vcf_incompatible_types
 
-from cpg_utils.config import get_config
-from cpg_utils.hail_batch import get_batch
-
-config = get_config()
+from cpg_utils.hail_batch import init_batch
+from cpg_utils.config import config_retrieve
 
 
-@click.command()
-@click.option('--vds', help='Input VDS file path', type=str, required=True)
-@click.option('--output', help='Output VCF file path', type=str, required=True)
-@click.option('--n_partitions', help='Number of partitions for the INFO table', type=int, default=2586)
-@click.option('--regions', help='Regions to subset to', type=str, default=None)
-@click.option('--regions_file', help='BED file containing regions to subset to', type=str, default=None)
-def main(
+def vds_to_vcf(
     vds: str,
     output: str,
     n_partitions: int,
@@ -96,6 +88,31 @@ def main(
 
     # Export to VCF
     hl.export_vcf(mt, output)
+
+
+@click.command()
+@click.option('--vds', help='Input VDS file path', type=str, required=True)
+@click.option('--output', help='Output VCF file path', type=str, required=True)
+@click.option('--regions', help='Regions to subset to', type=str, default=None)
+@click.option('--regions_file', help='BED file containing regions to subset to', type=str, default=None)
+def main(
+    vds: str,
+    output: str,
+    regions: str | None,
+    regions_file: str | None
+):
+    init_batch(worker_memory='highmem')
+
+    # Get configuration details
+    n_partitions = config_retrieve(key=['vds_to_vcf', 'n_partitions'], default=2586)
+
+    vds_to_vcf(
+        vds=vds,
+        output=output,
+        n_partitions=n_partitions,
+        regions=regions,
+        regions_file=regions_file
+    )
 
 
 if __name__ == '__main__':

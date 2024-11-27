@@ -4,32 +4,32 @@ import os
 
 from cpg_utils.dataproc import setup_dataproc
 from cpg_utils.hail_batch import get_batch
+from cpg_utils.config import config_retrieve
 
 
 @click.command()
 @click.option('--vds', help='Input VDS file path', type=str, required=True)
 @click.option('--output', help='Output VCF file path', type=str, required=True)
-@click.option('--n_partitions', help='Number of partitions for the INFO table', type=int, default=2586)
 @click.option('--regions', help='Regions to subset to', type=str, default=None)
 @click.option('--regions_file', help='BED file containing regions to subset to', type=str, default=None)
-@click.option('--n_workers', help='Number of workers', type=int, default=2)
-@click.option('--max_age', help='Max age of the cluster', type=str, default='1h')
 def main(
     vds: str,
     output: str,
-    n_partitions: int,
     regions: str | None,
     regions_file: str | None,
-    n_workers: int,
-    max_age: str
 ):
-    batch = get_batch(name='vds_to_vcf')
+    batch = get_batch(name='vds_to_vcf_dp')
 
     # get relative path of cwd to the script using os
     script_path = os.path.join(
         os.path.relpath(os.path.dirname(__file__), os.getcwd()),
         'vds_to_vcf.py',
     )
+
+    # Get configuration details
+    max_age = config_retrieve(key=['dataproc', 'max_age'], default='1h')
+    num_workers = config_retrieve(key=['dataproc', 'num_workers'], default=2)
+    n_partitions = config_retrieve(key=['vds_to_vcf', 'n_partitions'], default=2586)
 
     regions_param = ''
     if regions:
@@ -42,7 +42,7 @@ def main(
     cluster = setup_dataproc(
         batch,
         max_age=max_age,
-        num_workers=n_workers,
+        num_workers=num_workers,
         packages=['click', 'gnomad'],
         cluster_name='hail_vds_to_vcf',
     )
